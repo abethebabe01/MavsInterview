@@ -25,12 +25,18 @@ import {
   Checkbox,
   ListItemText,
   OutlinedInput,
+  Alert,
+  CircularProgress,
+  ToggleButtonGroup,
+  ToggleButton,
 } from '@mui/material';
 import { FilterList, KeyboardArrowDown, KeyboardArrowUp } from '@mui/icons-material';
 
 const MavsStats = () => {
   const [records, setRecords] = useState([]);
   const [teamStats, setTeamStats] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [filters, setFilters] = useState({
     sortBy: 'season',
     sortOrder: 'DESC',
@@ -47,7 +53,7 @@ const MavsStats = () => {
     playoffs: '',
   });
   const [teamStatsFilters, setTeamStatsFilters] = useState({
-    sortBy: 'season',
+    sortBy: 'Season',
     sortOrder: 'DESC',
     season: '',
     minPts: '',
@@ -56,6 +62,11 @@ const MavsStats = () => {
     maxFgPercent: '',
     min3pPercent: '',
     max3pPercent: '',
+    minWins: '',
+    maxWins: '',
+    minWinPercent: '',
+    maxWinPercent: '',
+    playoffResult: ''
   });
   const [filterOptions, setFilterOptions] = useState({
     seasons: [],
@@ -69,8 +80,12 @@ const MavsStats = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [showTeamStatsFilters, setShowTeamStatsFilters] = useState(false);
   const [selectedColumns, setSelectedColumns] = useState([
-    'Season', 'Age', 'G', 'MP', 'FG_percent', '3P_percent', '2P_percent', 'FT_percent', 'TRB', 'AST', 'STL', 'BLK', 'TOV', 'PTS'
+    'Season', 'Age', 'G', 'MP', 'FG_percent', '3P_percent', '2P_percent', 'FT_percent', 
+    'TRB', 'AST', 'STL', 'BLK', 'TOV', 'PTS', 'w', 'l', 'wl', 'playoffs'
   ]);
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [totalTeamStats, setTotalTeamStats] = useState(0);
+  const [activeTable, setActiveTable] = useState('records'); // 'records' or 'stats'
 
   const allColumns = [
     { id: 'Season', label: 'Season' },
@@ -98,6 +113,10 @@ const MavsStats = () => {
     { id: 'TOV', label: 'Turnovers' },
     { id: 'PF', label: 'Fouls' },
     { id: 'PTS', label: 'Points' },
+    { id: 'w', label: 'Wins' },
+    { id: 'l', label: 'Losses' },
+    { id: 'wl', label: 'Win %' },
+    { id: 'playoffs', label: 'Playoff Result' }
   ];
 
   useEffect(() => {
@@ -118,6 +137,8 @@ const MavsStats = () => {
 
   const fetchRecords = async () => {
     try {
+      setIsLoading(true);
+      setError(null);
       const queryParams = new URLSearchParams({
         ...filters,
         limit: rowsPerPage,
@@ -125,26 +146,46 @@ const MavsStats = () => {
       });
 
       const response = await fetch(`http://localhost:3001/api/team-records?${queryParams}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch team records');
+      }
       const data = await response.json();
-      setRecords(data);
+      setRecords(data.records || []);
+      setTotalRecords(data.total);
     } catch (error) {
       console.error('Error fetching records:', error);
+      setError(error.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const fetchTeamStats = async () => {
     try {
+      setIsLoading(true);
+      setError(null);
       const queryParams = new URLSearchParams({
         ...teamStatsFilters,
         limit: teamStatsRowsPerPage,
         offset: teamStatsPage * teamStatsRowsPerPage,
       });
 
+      console.log('Fetching team stats with params:', queryParams.toString());
       const response = await fetch(`http://localhost:3001/api/team-stats?${queryParams}`);
-      const data = await response.json();
-      setTeamStats(data);
+      const errorData = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(errorData.details || 'Failed to fetch team stats');
+      }
+      
+      console.log('Received team stats data:', errorData);
+      setTeamStats(errorData.records || []);
+      setTotalTeamStats(errorData.total);
     } catch (error) {
       console.error('Error fetching team stats:', error);
+      setError(error.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -183,6 +224,12 @@ const MavsStats = () => {
     setSelectedColumns(
       typeof value === 'string' ? value.split(',') : value,
     );
+  };
+
+  const handleTableChange = (event, newTable) => {
+    if (newTable !== null) {
+      setActiveTable(newTable);
+    }
   };
 
   const FilterSection = () => (
@@ -437,6 +484,74 @@ const MavsStats = () => {
             </FormControl>
           </Grid>
 
+          {/* Win/Loss Filters */}
+          <Grid item xs={12}>
+            <Typography variant="h6" sx={{ mb: 2, color: '#B8C4CA' }}>Team Performance Filters</Typography>
+            <Grid container spacing={2}>
+              {/* Wins Range */}
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Min Wins"
+                  type="number"
+                  value={teamStatsFilters.minWins}
+                  onChange={(e) => handleTeamStatsFilterChange('minWins', e.target.value)}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Max Wins"
+                  type="number"
+                  value={teamStatsFilters.maxWins}
+                  onChange={(e) => handleTeamStatsFilterChange('maxWins', e.target.value)}
+                />
+              </Grid>
+
+              {/* Win Percentage Range */}
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Min Win %"
+                  type="number"
+                  inputProps={{ min: 0, max: 100, step: 0.1 }}
+                  value={teamStatsFilters.minWinPercent}
+                  onChange={(e) => handleTeamStatsFilterChange('minWinPercent', e.target.value)}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Max Win %"
+                  type="number"
+                  inputProps={{ min: 0, max: 100, step: 0.1 }}
+                  value={teamStatsFilters.maxWinPercent}
+                  onChange={(e) => handleTeamStatsFilterChange('maxWinPercent', e.target.value)}
+                />
+              </Grid>
+
+              {/* Playoff Result */}
+              <Grid item xs={12}>
+                <FormControl fullWidth>
+                  <InputLabel>Playoff Result</InputLabel>
+                  <Select
+                    value={teamStatsFilters.playoffResult}
+                    label="Playoff Result"
+                    onChange={(e) => handleTeamStatsFilterChange('playoffResult', e.target.value)}
+                  >
+                    <MenuItem value="">All Results</MenuItem>
+                    <MenuItem value="Lost First Round">Lost First Round</MenuItem>
+                    <MenuItem value="Lost Conf. Semifinals">Lost Conf. Semifinals</MenuItem>
+                    <MenuItem value="Lost Conf. Finals">Lost Conf. Finals</MenuItem>
+                    <MenuItem value="Lost NBA Finals">Lost NBA Finals</MenuItem>
+                    <MenuItem value="Won NBA Finals">Won NBA Finals</MenuItem>
+                    <MenuItem value="Missed Playoffs">Missed Playoffs</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+            </Grid>
+          </Grid>
+
           {/* Statistical Filters */}
           <Grid item xs={12}>
             <Typography variant="h6" sx={{ mb: 2, color: '#B8C4CA' }}>Statistical Filters</Typography>
@@ -509,115 +624,184 @@ const MavsStats = () => {
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1">
-          Mavericks Team Records
-        </Typography>
-        <IconButton onClick={() => setShowFilters(!showFilters)}>
-          <FilterList />
-        </IconButton>
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {error}
+        </Alert>
+      )}
+
+      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 3 }}>
+        <ToggleButtonGroup
+          value={activeTable}
+          exclusive
+          onChange={handleTableChange}
+          aria-label="table selection"
+          sx={{ mb: 3 }}
+        >
+          <ToggleButton value="records" aria-label="team records">
+            Mavericks Team Records
+          </ToggleButton>
+          <ToggleButton value="stats" aria-label="team statistics">
+            Team Statistics
+          </ToggleButton>
+        </ToggleButtonGroup>
       </Box>
 
-      <Collapse in={showFilters}>
-        <FilterSection />
-      </Collapse>
+      {activeTable === 'records' && (
+        <>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+            <Box>
+              <Typography variant="h4" component="h1">
+                Mavericks Team Records
+              </Typography>
+              <Typography variant="subtitle1" color="text.secondary">
+                Total Results: {totalRecords}
+              </Typography>
+            </Box>
+            <IconButton onClick={() => setShowFilters(!showFilters)}>
+              <FilterList />
+            </IconButton>
+          </Box>
 
-      <TableContainer component={Paper} sx={{ mb: 4 }}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>Season</TableCell>
-              <TableCell>Coach</TableCell>
-              <TableCell>W</TableCell>
-              <TableCell>L</TableCell>
-              <TableCell>Win%</TableCell>
-              <TableCell>Finish</TableCell>
-              <TableCell>Pace</TableCell>
-              <TableCell>ORtg</TableCell>
-              <TableCell>DRtg</TableCell>
-              <TableCell>Playoffs</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {records.map((record) => (
-              <TableRow key={record.season}>
-                <TableCell>{record.season}</TableCell>
-                <TableCell>{record.coaches}</TableCell>
-                <TableCell>{record.w}</TableCell>
-                <TableCell>{record.l}</TableCell>
-                <TableCell>{record.wl}</TableCell>
-                <TableCell>{record.finish}</TableCell>
-                <TableCell>{record.pace}</TableCell>
-                <TableCell>{record.ortg}</TableCell>
-                <TableCell>{record.drtg}</TableCell>
-                <TableCell>{record.playoffs}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-        <TablePagination
-          rowsPerPageOptions={[5, 10, 25, 50]}
-          component="div"
-          count={-1}
-          rowsPerPage={rowsPerPage}
-          page={page}
-          onPageChange={handleChangePage}
-          onRowsPerPageChange={handleChangeRowsPerPage}
-        />
-      </TableContainer>
+          <Collapse in={showFilters}>
+            <FilterSection />
+          </Collapse>
 
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1">
-          Team Statistics
-        </Typography>
-        <IconButton onClick={() => setShowTeamStatsFilters(!showTeamStatsFilters)}>
-          <FilterList />
-        </IconButton>
-      </Box>
+          <TableContainer component={Paper} sx={{ mb: 4 }}>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Season</TableCell>
+                  <TableCell>Coach</TableCell>
+                  <TableCell>W</TableCell>
+                  <TableCell>L</TableCell>
+                  <TableCell>Win%</TableCell>
+                  <TableCell>Finish</TableCell>
+                  <TableCell>Pace</TableCell>
+                  <TableCell>ORtg</TableCell>
+                  <TableCell>DRtg</TableCell>
+                  <TableCell>Playoffs</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={10} align="center">
+                      <CircularProgress />
+                    </TableCell>
+                  </TableRow>
+                ) : records.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={10} align="center">
+                      No records found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  records.map((record) => (
+                    <TableRow key={record.season}>
+                      <TableCell>{record.season}</TableCell>
+                      <TableCell>{record.coaches}</TableCell>
+                      <TableCell>{record.w}</TableCell>
+                      <TableCell>{record.l}</TableCell>
+                      <TableCell>{record.wl}</TableCell>
+                      <TableCell>{record.finish}</TableCell>
+                      <TableCell>{record.pace}</TableCell>
+                      <TableCell>{record.ortg}</TableCell>
+                      <TableCell>{record.drtg}</TableCell>
+                      <TableCell>{record.playoffs}</TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+            <TablePagination
+              rowsPerPageOptions={[5, 10, 25, 50]}
+              component="div"
+              count={totalRecords}
+              rowsPerPage={rowsPerPage}
+              page={page}
+              onPageChange={handleChangePage}
+              onRowsPerPageChange={handleChangeRowsPerPage}
+            />
+          </TableContainer>
+        </>
+      )}
 
-      <Collapse in={showTeamStatsFilters}>
-        <TeamStatsFilterSection />
-      </Collapse>
+      {activeTable === 'stats' && (
+        <>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+            <Box>
+              <Typography variant="h4" component="h1">
+                Team Statistics
+              </Typography>
+              <Typography variant="subtitle1" color="text.secondary">
+                Total Results: {totalTeamStats}
+              </Typography>
+            </Box>
+            <IconButton onClick={() => setShowTeamStatsFilters(!showTeamStatsFilters)}>
+              <FilterList />
+            </IconButton>
+          </Box>
 
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              {selectedColumns.map((column) => (
-                <TableCell key={column}>
-                  {allColumns.find(c => c.id === column)?.label || column}
-                </TableCell>
-              ))}
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {teamStats.map((stat, index) => (
-              <TableRow key={`${stat.Season}-${index}`}>
-                {selectedColumns.map((column) => {
-                  const value = stat[column];
-                  if (column.includes('_percent')) {
-                    return (
-                      <TableCell key={column}>
-                        {value ? (value * 100).toFixed(1) : '0.0'}%
-                      </TableCell>
-                    );
-                  }
-                  return <TableCell key={column}>{value}</TableCell>;
-                })}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-        <TablePagination
-          rowsPerPageOptions={[5, 10, 25, 50]}
-          component="div"
-          count={-1}
-          rowsPerPage={teamStatsRowsPerPage}
-          page={teamStatsPage}
-          onPageChange={handleTeamStatsChangePage}
-          onRowsPerPageChange={handleTeamStatsChangeRowsPerPage}
-        />
-      </TableContainer>
+          <Collapse in={showTeamStatsFilters}>
+            <TeamStatsFilterSection />
+          </Collapse>
+
+          <TableContainer component={Paper}>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  {selectedColumns.map((column) => (
+                    <TableCell key={column}>
+                      {allColumns.find(c => c.id === column)?.label || column}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={selectedColumns.length} align="center">
+                      <CircularProgress />
+                    </TableCell>
+                  </TableRow>
+                ) : teamStats.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={selectedColumns.length} align="center">
+                      No records found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  teamStats.map((stat, index) => (
+                    <TableRow key={`${stat.Season}-${index}`}>
+                      {selectedColumns.map((column) => {
+                        const value = stat[column];
+                        if (column.includes('_percent')) {
+                          return (
+                            <TableCell key={column}>
+                              {value ? (value * 100).toFixed(1) : '0.0'}%
+                            </TableCell>
+                          );
+                        }
+                        return <TableCell key={column}>{value}</TableCell>;
+                      })}
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+            <TablePagination
+              rowsPerPageOptions={[5, 10, 25, 50]}
+              component="div"
+              count={totalTeamStats}
+              rowsPerPage={teamStatsRowsPerPage}
+              page={teamStatsPage}
+              onPageChange={handleTeamStatsChangePage}
+              onRowsPerPageChange={handleTeamStatsChangeRowsPerPage}
+            />
+          </TableContainer>
+        </>
+      )}
     </Container>
   );
 };

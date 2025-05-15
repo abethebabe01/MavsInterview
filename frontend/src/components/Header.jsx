@@ -57,7 +57,8 @@ const Header = () => {
             { path: '/', label: 'Home' },
             { path: '/stats', label: 'Stats' },
             { path: '/scouts', label: 'Scouts' },
-            { path: '/operations', label: 'Operations' }
+            { path: '/operations', label: 'Operations' },
+            { path: '/draft', label: 'Draft' }
           ].map(({ path, label }) => (
             <Button
               key={path}

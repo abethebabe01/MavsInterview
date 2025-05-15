@@ -8,6 +8,7 @@ import Home from './pages/Home';
 import MavsStats from './pages/MavsStats';
 import MavsScouts from './pages/MavsScouts';
 import Operations from './pages/Operations';
+import Draft from './pages/Draft';
 import './App.css';
 
 // Create a retro-tech theme
@@ -15,12 +16,12 @@ const theme = createTheme({
   palette: {
     mode: 'dark',
     primary: {
-      main: '#00538C', // Mavericks blue
+      main: '#00538C',
       light: '#1A6BA1',
       dark: '#003B63',
     },
     secondary: {
-      main: '#B8C4CA', // Mavericks silver
+      main: '#B8C4CA',
       light: '#D1D9DF',
       dark: '#8A949A',
     },
@@ -126,6 +127,7 @@ function App() {
                 <Route path="/stats" element={<MavsStats />} />
                 <Route path="/scouts" element={<MavsScouts />} />
                 <Route path="/operations" element={<Operations />} />
+                <Route path="/draft/*" element={<Draft />} />
               </Routes>
             </main>
             <Footer />

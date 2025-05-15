@@ -10,7 +10,7 @@ export default defineConfig({
     assetsDir: 'assets',
     sourcemap: true,
     rollupOptions: {
-      external: ['@mui/x-date-pickers', 'axios']
+      external: ['axios']
     }
   }
 })

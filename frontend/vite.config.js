@@ -10,7 +10,16 @@ export default defineConfig({
     assetsDir: 'assets',
     sourcemap: true,
     rollupOptions: {
-      external: ['axios']
+      external: ['axios'],
+      output: {
+        manualChunks: {
+          'date-fns': ['date-fns'],
+          'mui': ['@mui/material', '@mui/icons-material', '@mui/x-date-pickers', '@mui/x-data-grid']
+        }
+      }
     }
+  },
+  optimizeDeps: {
+    include: ['date-fns']
   }
 })

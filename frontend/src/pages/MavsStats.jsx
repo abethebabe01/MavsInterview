@@ -127,9 +127,19 @@ const MavsStats = () => {
 
   const fetchFilterOptions = async () => {
     try {
+      // Comment out database call
+      /*
       const response = await fetch('http://localhost:3001/api/team-records/filters');
       const data = await response.json();
       setFilterOptions(data);
+      */
+      
+      // Use static filter options
+      setFilterOptions({
+        seasons: ['2023-24', '2022-23', '2021-22'],
+        coaches: ['Jason Kidd', 'Rick Carlisle'],
+        playoffs: ['First Round', 'Second Round', 'Conference Finals', 'Finals']
+      });
     } catch (error) {
       console.error('Error fetching filter options:', error);
     }
@@ -139,6 +149,9 @@ const MavsStats = () => {
     try {
       setIsLoading(true);
       setError(null);
+      
+      // Comment out database call
+      /*
       const queryParams = new URLSearchParams({
         ...filters,
         limit: rowsPerPage,
@@ -152,6 +165,11 @@ const MavsStats = () => {
       const data = await response.json();
       setRecords(data.records || []);
       setTotalRecords(data.total);
+      */
+      
+      // Use static data
+      setRecords([]);
+      setTotalRecords(0);
     } catch (error) {
       console.error('Error fetching records:', error);
       setError(error.message);
@@ -164,6 +182,9 @@ const MavsStats = () => {
     try {
       setIsLoading(true);
       setError(null);
+      
+      // Comment out database call
+      /*
       const queryParams = new URLSearchParams({
         ...teamStatsFilters,
         limit: teamStatsRowsPerPage,
@@ -181,6 +202,11 @@ const MavsStats = () => {
       console.log('Received team stats data:', errorData);
       setTeamStats(errorData.records || []);
       setTotalTeamStats(errorData.total);
+      */
+      
+      // Use static data
+      setTeamStats([]);
+      setTotalTeamStats(0);
     } catch (error) {
       console.error('Error fetching team stats:', error);
       setError(error.message);
